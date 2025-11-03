@@ -1,14 +1,43 @@
 require 'glimmer-dsl-libui'
 
-class FileManager
+class FileManager # rubocop:disable Metrics/ClassLength
   include Glimmer
 
   Row = Struct.new(:type, :links, :owner, :group, :fsize, :updated_at, :name)
-  attr_accessor :pwd, :rows
+  attr_accessor :pwd, :rows, :history, :index_history
+
+  HOME_PATH = '~'.freeze
 
   def initialize
-    @pwd = '~'
+    @pwd = HOME_PATH
     @rows = []
+    @history = [HOME_PATH]
+    @index_history = 0
+    set_rows
+  end
+
+  def navegate(path)
+    self.pwd = path
+    set_rows
+    self.history = @history[0..@index_history]
+    self.history << path
+    self.index_history = @history.size - 1
+  end
+
+  def can_navegate(is_back: false)
+    return false if is_back && @index_history < 1
+    return false if !is_back && @index_history >= @history.size - 1
+
+    true
+  end
+
+  def navegate_history(is_back: false)
+    return unless can_navegate(is_back: is_back)
+
+    index = is_back ? self.index_history - 1 : self.index_history + 1
+    self.index_history = index
+    path = self.history[index]
+    self.pwd = path
     set_rows
   end
 
@@ -20,12 +49,33 @@ class FileManager
         horizontal_box {
           stretchy false
 
+          button('🐛') {
+            stretchy false
+
+            on_clicked do
+              puts "History: #{self.history}"
+              puts "Index: #{self.index_history}"
+            end
+          }
           button('🏠') {
             stretchy false
 
             on_clicked do
-              self.pwd = '~'
-              set_rows
+              navegate HOME_PATH
+            end
+          }
+          button('⬅️') {
+            stretchy false
+
+            on_clicked do
+              navegate_history(is_back: true)
+            end
+          }
+          button('➡️') {
+            stretchy false
+
+            on_clicked do
+              navegate_history
             end
           }
           label {
@@ -45,8 +95,7 @@ class FileManager
             realpath = `realpath #{@pwd}/#{row.name}`.chop
 
             if row.type[0] == 'd'
-              self.pwd = realpath
-              set_rows
+              navegate realpath
             elsif row.type[0] == '-'
               `open #{realpath}`
             end

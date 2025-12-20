@@ -31,7 +31,11 @@ class FileManager
   def navegate_history(is_back: false)
     return unless can_navegate?(is_back: is_back)
 
-    index = is_back ? self.index_history - 1 : self.index_history + 1
+    index = is_back ? @index_history - 1 : @index_history + 1
+    navegate_to(index: index)
+  end
+
+  def navegate_to(index: 0)
     self.index_history = index
     path = @history[index]
     self.pwd = path
@@ -76,8 +80,7 @@ class FileManager
             stretchy false
 
             on_clicked do
-              initial_sate
-              set_rows
+              navegate_to(index: 0)
             end
           }
           button('⬅️') {

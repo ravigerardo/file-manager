@@ -1,6 +1,6 @@
 require 'rbconfig'
 
-require_relative 'main-window'
+require_relative 'main_window'
 
 os = nil
 

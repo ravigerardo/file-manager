@@ -62,7 +62,7 @@ class FileManager
         group: raw_columns[3],
         fsize: raw_columns[4],
         updated_at: "#{raw_columns[5]} #{raw_columns[6]} #{raw_columns[7]}",
-        name: raw_columns[8]
+        name: raw_columns[8..].join("\s")
       )
     end
 
@@ -106,13 +106,12 @@ class FileManager
         }
         table {
           text_column('Name')
+          text_column('Size')
           text_column('Updated at')
-          text_column('Fsize')
-          text_column('Type')
 
           on_row_double_clicked do |_table, index|
             row = @rows[index]
-            realpath = `realpath #{@pwd}/#{row.name}`.chop
+            realpath = `realpath #{@pwd}/"#{row.name}"`.chop.gsub("\s", "\\\s")
 
             if row.type[0] == 'd'
               navegate realpath
@@ -122,7 +121,7 @@ class FileManager
             end
           end
 
-          cell_rows <= [self, :rows]
+          cell_rows <= [self, :rows, { column_attributes: %i[name fsize updated_at] }]
         }
       }
     }.show

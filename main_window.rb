@@ -67,7 +67,7 @@ class FileManager
   end
 
   def launch
-    window('File Manager 🗃️') {
+    window('File Manager 🗃️', 550, 500) {
       margined true
 
       vertical_box {

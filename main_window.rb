@@ -1,58 +1,56 @@
 require 'glimmer-dsl-libui'
 
+require_relative 'state'
+
 class FileManager
   include Glimmer
 
   Row = Struct.new(:type, :links, :owner, :group, :fsize, :updated_at, :name)
-  attr_accessor :pwd, :rows, :history, :index_history
+  attr_accessor :state
 
-  HOME_PATH = '~'.freeze
-
-  def initialize(os:)
-    @os = os
-    initial_sate
+  def initialize
+    @os = AppState.instance.os
+    @state = WindowState.new
     set_rows
   end
 
-  def initial_sate
-    @pwd = HOME_PATH
-    @rows = []
-    @history = [HOME_PATH]
-    @index_history = 0
-  end
-
-  def navegate(path)
-    self.pwd = path
+  def navegate_to(path)
+    self.state.pwd = path
     set_rows
-    self.history = @history[0..@index_history]
-    self.history << path
-    self.index_history = @history.size - 1
+    self.state.history = @state.history[0..@state.index_history]
+    self.state.history << path
+    self.state.index_history = @state.history.size - 1
   end
 
-  def navegate_history(is_back: false)
-    return unless can_navegate?(is_back: is_back)
+  def move_forward_in_history
+    return unless can_move_in_history?(is_backward: false)
 
-    index = is_back ? @index_history - 1 : @index_history + 1
-    navegate_to(index: index)
+    navegate_in_history(index: @state.index_history + 1)
   end
 
-  def navegate_to(index: 0)
-    self.index_history = index
-    path = @history[index]
-    self.pwd = path
+  def move_backward_in_history
+    return unless can_move_in_history?(is_backward: true)
+
+    navegate_in_history(index: @state.index_history - 1)
+  end
+
+  def navegate_in_history(index: 0)
+    self.state.index_history = index
+    path = @state.history[index]
+    self.state.pwd = path
     set_rows
   end
 
-  def can_navegate?(is_back: false)
-    return false if is_back && @index_history < 1
-    return false if !is_back && @index_history >= @history.size - 1
+  def can_move_in_history?(is_backward: false)
+    return false if is_backward && @state.index_history < 1
+    return false if !is_backward && @state.index_history >= @state.history.size - 1
 
     true
   end
 
   def set_rows
     rows = []
-    raw_rows = `ls -l #{@pwd}`.split("\n").drop(1)
+    raw_rows = `ls -l #{@state.pwd}`.split("\n").drop(1)
     raw_rows.each do |c|
       raw_columns = c.split
       rows << Row.new(
@@ -66,7 +64,7 @@ class FileManager
       )
     end
 
-    self.rows = rows
+    self.state.rows = rows
   end
 
   def launch
@@ -81,27 +79,27 @@ class FileManager
             stretchy false
 
             on_clicked do
-              navegate_to(index: 0)
+              navegate_in_history(index: 0)
             end
           }
           button('⬅️') {
             stretchy false
 
             on_clicked do
-              navegate_history is_back: true
+              move_backward_in_history
             end
           }
           button('➡️') {
             stretchy false
 
             on_clicked do
-              navegate_history
+              move_forward_in_history
             end
           }
           label {
             stretchy false
 
-            text <= [self, :pwd]
+            text <= [self.state, :pwd]
           }
         }
         table {
@@ -110,18 +108,18 @@ class FileManager
           text_column('Updated at')
 
           on_row_double_clicked do |_table, index|
-            row = @rows[index]
-            realpath = `realpath #{@pwd}/"#{row.name}"`.chop.gsub("\s", "\\\s")
+            row = @state.rows[index]
+            realpath = `realpath #{@state.pwd}/"#{row.name}"`.chop.gsub("\s", "\\\s")
 
             if row.type[0] == 'd'
-              navegate realpath
+              navegate_to realpath
             elsif row.type[0] == '-'
               command = @os == :macos ? 'open' : 'xdg-open'
               `#{command} #{realpath}`
             end
           end
 
-          cell_rows <= [self, :rows, { column_attributes: %i[name fsize updated_at] }]
+          cell_rows <= [self.state, :rows, { column_attributes: %i[name fsize updated_at] }]
         }
       }
     }.show

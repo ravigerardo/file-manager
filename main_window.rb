@@ -9,7 +9,6 @@ class FileManager
   attr_accessor :state
 
   def initialize
-    @os = AppState.instance.os
     @state = WindowState.new
     set_rows
   end
@@ -114,7 +113,7 @@ class FileManager
             if row.type[0] == 'd'
               navegate_to realpath
             elsif row.type[0] == '-'
-              command = @os == :macos ? 'open' : 'xdg-open'
+              command = AppState.instance.os == :macos ? 'open' : 'xdg-open'
               `#{command} #{realpath}`
             end
           end
